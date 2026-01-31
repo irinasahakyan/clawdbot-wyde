@@ -217,26 +217,55 @@ Type **help** to see what I can do!`);
   }
 });
 
-// Login with detailed logging
-console.log("=== DISCORD LOGIN ===");
+// First test if Discord API is reachable with this token
+console.log("=== TESTING DISCORD API ===");
 console.log("Token exists:", !!process.env.DISCORD_TOKEN);
 console.log("Token length:", process.env.DISCORD_TOKEN?.length || 0);
-console.log("Token preview:", process.env.DISCORD_TOKEN?.substring(0, 10) + "...");
 
-// Set a timeout to detect hanging
-const loginTimeout = setTimeout(() => {
-  console.error("⚠️ LOGIN TIMEOUT - Discord login took more than 30 seconds");
-  console.error("This usually means the token is invalid or revoked");
-}, 30000);
+async function testDiscordAPI() {
+  try {
+    const response = await fetch("https://discord.com/api/v10/users/@me", {
+      headers: {
+        "Authorization": `Bot ${process.env.DISCORD_TOKEN}`
+      }
+    });
+    const data = await response.json();
+    console.log("API Response status:", response.status);
+    console.log("API Response:", JSON.stringify(data));
 
-client.login(process.env.DISCORD_TOKEN)
-  .then(() => {
-    clearTimeout(loginTimeout);
-    console.log("✅ Discord login successful");
-  })
-  .catch(err => {
-    clearTimeout(loginTimeout);
-    console.error("❌ Discord login FAILED:", err.message);
-    console.error("Error code:", err.code);
-    console.error("Full error:", err);
-  });
+    if (response.status === 200) {
+      console.log("✅ Token is VALID - Bot username:", data.username);
+      return true;
+    } else {
+      console.log("❌ Token is INVALID - Discord rejected it");
+      return false;
+    }
+  } catch (err) {
+    console.error("❌ Cannot reach Discord API:", err.message);
+    return false;
+  }
+}
+
+testDiscordAPI().then(isValid => {
+  if (!isValid) {
+    console.log("Skipping WebSocket login due to invalid token");
+    return;
+  }
+
+  console.log("=== ATTEMPTING WEBSOCKET LOGIN ===");
+
+  const loginTimeout = setTimeout(() => {
+    console.error("⚠️ LOGIN TIMEOUT - WebSocket connection took more than 30 seconds");
+  }, 30000);
+
+  client.login(process.env.DISCORD_TOKEN)
+    .then(() => {
+      clearTimeout(loginTimeout);
+      console.log("✅ Discord WebSocket login successful");
+    })
+    .catch(err => {
+      clearTimeout(loginTimeout);
+      console.error("❌ Discord WebSocket login FAILED:", err.message);
+      console.error("Error code:", err.code);
+    });
+});
