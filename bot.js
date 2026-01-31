@@ -194,4 +194,10 @@ Type **help** to see what I can do!`);
   }
 });
 
-client.login(process.env.DISCORD_TOKEN);
+console.log("🔄 Attempting Discord login...");
+console.log("Token exists:", !!process.env.DISCORD_TOKEN);
+console.log("Token length:", process.env.DISCORD_TOKEN?.length || 0);
+
+client.login(process.env.DISCORD_TOKEN)
+  .then(() => console.log("✅ Discord login successful"))
+  .catch(err => console.error("❌ Discord login FAILED:", err.message));
