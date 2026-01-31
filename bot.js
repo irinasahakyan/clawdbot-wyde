@@ -1,11 +1,20 @@
 const { Client, GatewayIntentBits, Partials } = require("discord.js");
 const http = require("http");
 
+console.log("=== CLAWDBOT STARTING ===");
+console.log("Node version:", process.version);
+console.log("Time:", new Date().toISOString());
+
 // Keep-alive server for Render
-http.createServer((req, res) => {
+const server = http.createServer((req, res) => {
   res.writeHead(200);
   res.end("Clawdbot is alive!");
-}).listen(process.env.PORT || 3000);
+});
+server.listen(process.env.PORT || 3000, () => {
+  console.log("HTTP server running on port:", process.env.PORT || 3000);
+});
+
+console.log("Creating Discord client...");
 
 const client = new Client({
   intents: [
@@ -15,6 +24,26 @@ const client = new Client({
     GatewayIntentBits.DirectMessages
   ],
   partials: [Partials.Channel, Partials.Message]
+});
+
+// Add error handlers BEFORE login
+client.on("error", (error) => {
+  console.error("CLIENT ERROR:", error.message);
+});
+
+client.on("warn", (warning) => {
+  console.warn("CLIENT WARNING:", warning);
+});
+
+client.on("debug", (info) => {
+  // Only log important debug info
+  if (info.includes("Heartbeat") || info.includes("Session") || info.includes("Gateway")) {
+    console.log("DEBUG:", info.substring(0, 100));
+  }
+});
+
+client.on("shardError", (error) => {
+  console.error("SHARD ERROR:", error.message);
 });
 
 // Real prices with API key
@@ -57,14 +86,15 @@ async function getWalletBalance(address) {
   }
 }
 
-// Get multiple token prices
 async function getAllPrices() {
   const data = await getPrice("ethereum,bitcoin,usd-coin,solana");
   return data;
 }
 
 client.once("ready", () => {
+  console.log("=================================");
   console.log("🦞 Clawdbot ONLINE as " + client.user.tag);
+  console.log("=================================");
   console.log("📊 CoinGecko API:", process.env.COINGECKO_API_KEY ? "Connected" : "No key");
   console.log("⛓️ Alchemy RPC:", process.env.ETH_RPC_URL ? "Connected" : "No key");
 });
@@ -75,7 +105,6 @@ client.on("messageCreate", async (msg) => {
   const m = msg.content.toLowerCase();
   console.log("MSG:", msg.content, "FROM:", msg.author.tag);
 
-  // Price check - multiple coins
   if (m.includes("price")) {
     const prices = await getAllPrices();
     if (prices) {
@@ -93,7 +122,6 @@ client.on("messageCreate", async (msg) => {
     return;
   }
 
-  // Wallet balance check
   if (m.includes("balance") || m.includes("portfolio")) {
     const addressMatch = msg.content.match(/0x[a-fA-F0-9]{40}/);
     if (addressMatch) {
@@ -119,7 +147,6 @@ Or connect your wallet on WYDE to track automatically!`);
     return;
   }
 
-  // Impact report
   if (m.includes("impact") || m.includes("charity")) {
     await msg.reply(`🌍 **WYDE Impact Report - January 2026**
 
@@ -138,7 +165,6 @@ Every trade you make contributes! 🎉`);
     return;
   }
 
-  // Swap quote with real prices
   if (m.includes("swap")) {
     const prices = await getPrice("ethereum");
     const ethPrice = prices?.ethereum?.usd || 3250;
@@ -156,7 +182,6 @@ Reply **YES** to confirm swap.`);
     return;
   }
 
-  // Whale alerts
   if (m.includes("whale")) {
     await msg.reply(`🐋 **Recent Whale Activity**
 
@@ -168,7 +193,6 @@ Large movements can signal price action! 📈`);
     return;
   }
 
-  // Help
   if (m.includes("help")) {
     await msg.reply(`🦞 **Clawdbot - WYDE Assistant**
 
@@ -183,7 +207,6 @@ Large movements can signal price action! 📈`);
     return;
   }
 
-  // Greetings
   if (m.includes("hello") || m.includes("hi") || m.includes("hey")) {
     await msg.reply(`Hey ${msg.author.username}! 👋
 
@@ -194,10 +217,26 @@ Type **help** to see what I can do!`);
   }
 });
 
-console.log("🔄 Attempting Discord login...");
+// Login with detailed logging
+console.log("=== DISCORD LOGIN ===");
 console.log("Token exists:", !!process.env.DISCORD_TOKEN);
 console.log("Token length:", process.env.DISCORD_TOKEN?.length || 0);
+console.log("Token preview:", process.env.DISCORD_TOKEN?.substring(0, 10) + "...");
+
+// Set a timeout to detect hanging
+const loginTimeout = setTimeout(() => {
+  console.error("⚠️ LOGIN TIMEOUT - Discord login took more than 30 seconds");
+  console.error("This usually means the token is invalid or revoked");
+}, 30000);
 
 client.login(process.env.DISCORD_TOKEN)
-  .then(() => console.log("✅ Discord login successful"))
-  .catch(err => console.error("❌ Discord login FAILED:", err.message));
+  .then(() => {
+    clearTimeout(loginTimeout);
+    console.log("✅ Discord login successful");
+  })
+  .catch(err => {
+    clearTimeout(loginTimeout);
+    console.error("❌ Discord login FAILED:", err.message);
+    console.error("Error code:", err.code);
+    console.error("Full error:", err);
+  });
