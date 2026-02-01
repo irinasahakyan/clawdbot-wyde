@@ -2,6 +2,7 @@ const { Client, GatewayIntentBits, Partials } = require("discord.js");
 const http = require("http");
 
 console.log("=== CLAWDBOT STARTING ===");
+console.log("VERSION: 2.0 - @mention required in servers");
 console.log("Node version:", process.version);
 console.log("Time:", new Date().toISOString());
 
