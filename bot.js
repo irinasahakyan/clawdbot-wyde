@@ -102,8 +102,20 @@ client.once("ready", () => {
 client.on("messageCreate", async (msg) => {
   if (msg.author.bot) return;
 
-  const m = msg.content.toLowerCase();
-  console.log("MSG:", msg.content, "FROM:", msg.author.tag);
+  // In server channels, require @mention. In DMs, no mention needed.
+  const isDM = !msg.guild;
+  const isMentioned = msg.mentions.has(client.user);
+
+  if (!isDM && !isMentioned) {
+    // Server message without @mention - ignore
+    return;
+  }
+
+  // Remove the bot mention from the message for cleaner parsing
+  const cleanContent = msg.content.replace(/<@!?\d+>/g, '').trim();
+  const m = cleanContent.toLowerCase();
+
+  console.log("MSG:", cleanContent, "FROM:", msg.author.tag, "DM:", isDM, "MENTIONED:", isMentioned);
 
   if (m.includes("price")) {
     const prices = await getAllPrices();
@@ -193,16 +205,17 @@ Large movements can signal price action! 📈`);
     return;
   }
 
-  if (m.includes("help")) {
+  if (m.includes("help") || m === "") {
     await msg.reply(`🦞 **Clawdbot - WYDE Assistant**
 
 **Commands:**
-• \`price\` - Live ETH, BTC, SOL prices
-• \`balance 0x...\` - Check wallet balance
-• \`impact\` - See charity donations
-• \`swap\` - Get swap quote
-• \`whale\` - Large transactions
+• \`@Clawdbot price\` - Live ETH, BTC, SOL prices
+• \`@Clawdbot balance 0x...\` - Check wallet balance
+• \`@Clawdbot impact\` - See charity donations
+• \`@Clawdbot swap\` - Get swap quote
+• \`@Clawdbot whale\` - Large transactions
 
+💡 *In servers, @mention me. In DMs, just type!*
 🌍 *WYDE: Trade crypto, fund causes*`);
     return;
   }
